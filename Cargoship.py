@@ -1,10 +1,11 @@
-from random import random
+from asynchat import simple_producer
+from tracemalloc import stop
 from pycat.core import Window, Sprite, Color, Label, Scheduler, KeyCode
 from pycat.experimental.movement import FourWayMovementController as Controller
 from typing import List
 from enum import Enum, auto
 from os import path 
-import random
+import random 
 
 w = Window(width=512,height=1024, background_image="Level_0.png", enforce_window_limits=False, is_sharp_pixel_scaling=True)
 
@@ -49,6 +50,7 @@ class Playbo(Sprite):
     
     def on_left_click(self):
         global Gstate
+        spwan_aid()
         if Gstate is States.start:
             Gstate = States.game
         if Gstate == States.game:
@@ -93,7 +95,7 @@ class Player(Sprite):
                     pbullet.position = self.position
                     self.btime = 0
             elif self.state == Player.Statep.health:
-                pass
+                self.flash(Color.GREEN)
             elif self.state == Player.Statep.hit:
                 pass
             if self.health < 1:
@@ -101,6 +103,13 @@ class Player(Sprite):
         elif Gstate != States.game:
             self.is_visible = False
             self.pl.is_visible = False
+        
+    def flash(self, color):
+        if color == Color.GREEN:
+            self.color = Color.GREEN
+            for i in range(12):
+                self.is_visible = False
+                self.is_visible = True
 
 class Helper(Sprite): 
     global Gstate
@@ -129,23 +138,22 @@ class Helper(Sprite):
 class Aid(Sprite):
     
     def on_create(self):
-        self.image = "aid,png"
+        self.image = "aid.png"
         self.layer = 9
-        self.scale = 1.6
+        self.scale = 0.16
         self.count = 0
         self.rtime = 0
-        self.reload = random.randint(1,1)
+        self.reload = 1
         self.goto_random_position_in_region(12, w.height, 500, w.height)
 
         
     def on_update(self, dt):
         global Gstate
         if Gstate == States.game:
-            self.y -= 10
+            self.y -= 4
             if self.count == 0:
                 self.rtime += dt
                 if self.rtime > self.reload:
-                    w.create_sprite(Aid)
                     self.count += 1
             if self.is_touching_any_sprite_with_tag("Player"):
                 self.delete()
@@ -153,10 +161,14 @@ class Aid(Sprite):
                 player.health += 5
                 player.pl.text = ("Player's HP:" + str(player.health)) 
                 self.count = 0
-        if self.y < 0: 
-            self.delete()
-            self.count = 0
+                self.rtime = 0
+            if self.y < 0: 
+                self.delete()
+                self.count = 0
+                self.rtime = 0
         
+def spwan_aid():
+    w.create_sprite(Aid)
 
 class Bullet(Sprite):
     global Gstate
@@ -191,10 +203,11 @@ class Eullet(Sprite):
             self.move_forward(self.speed)
             if self.y < 0:
                 self.delete()
-            if self.is_touching_any_sprite_with_tag("Player"):
-                self.delete() 
-                player.health -= 1 
-                player.pl.text = ("Player's HP:" + str(player.health)) 
+            if player.state == Player.Statep.normal:
+                if self.is_touching_any_sprite_with_tag("Player"):
+                    self.delete() 
+                    player.health -= 1 
+                    player.pl.text = ("Player's HP:" + str(player.health)) 
         elif Gstate != States.game:
             self.delete()
 
@@ -245,7 +258,7 @@ class Return(Sprite):
         self.scale = 0.49
         self.layer = 10
         self.x = w.width - 64
-        self.y = 64
+        self.y = 256
         self.la = w.create_label()
         self.la.x = w.width/2
         self.la.x = self.la.x - self.la.content_width/2
