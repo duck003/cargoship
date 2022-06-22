@@ -41,16 +41,29 @@ class Playbo(Sprite):
         self.layer  = 10
         self.position = w.center
         self.y = self.y - 48
-
+        self.time = 0
+        self.thinking = 6
+        self.tools = 0    
+    
     def on_update(self, dt):
         if Gstate == States.start:
             self.is_visible = True
         if Gstate != States.start:
             self.is_visible = False
+        self.time += dt
+        if self.time > self.thinking:
+            a = random.randint(1,100)
+            if a > 50:
+                w.create_sprite(Box)
+                self.time = 0
+            elif a <= 50:
+                w.create_sprite(Aid)
+                self.time = 0
+                
+
     
     def on_left_click(self):
         global Gstate
-        spwan_aid()
         if Gstate is States.start:
             Gstate = States.game
         if Gstate == States.game:
@@ -74,42 +87,91 @@ class Player(Sprite):
         self.is_visible = False
         self.btime = 0
         self.reload = 0.36
-        self.health = 26
+        self.htime = 0
+        self.hendtime = 2.5
+        self.gtime = 0
+        self.gendtime = 1.5
+        self.ttime = 0
+        self.tcount = 0
+        self.tendtime = 11
+        self.ftime = 0
+        self.freload = 0.36
+        self.health = 9
         self.pl = w.create_label()
         self.pl.x = 0
         self.pl.y = w.height
         self.pl.text =  ("Player's HP:" + str(self.health))
         self.pl.is_visible = False 
         self.state = Player.Statep.normal
+        self.rgb = self.color
+        self.boost = False
         
     def on_update(self, dt):
         global Gstate
         if Gstate == States.game:
-            if self.state == Player.Statep.normal:
-                self.btime += dt
-                self.is_visible = True
-                self.pl.is_visible = True 
-                self.position += self.movement_controller.get_movement_delta(dt)
-                if self.btime > self.reload:
+            self.btime += dt
+            if self.btime > self.reload:
                     pbullet = w.create_sprite(Bullet)
                     pbullet.position = self.position
                     self.btime = 0
+            if self.boost == True:
+                self.ttime += dt
+                if self.tcount == 0:
+                    self.movement_controller._speed_factor = 0
+                    self.position = self.position
+                    self.bullet01 = w.create_sprite(NotHelper)
+                    self.bullet01.position = self.position
+                    self.bullet01.x -= 32
+                    self.bullet01.is_visible = False
+                    self.bullet02 = w.create_sprite(NotHelper)
+                    self.bullet02.position = self.position
+                    self.bullet02.x += 32
+                    self.bullet02.is_visible = False
+                    self.movement_controller._speed_factor = 25
+                    self.tcount += 1 
+                if self.ttime > self.tendtime:
+                    self.bullet01.delete()
+                    self.bullet02.delete()
+                    self.boost = False
+                    self.ttime = 0
+                    self.tcount = 0 
+            if self.state == Player.Statep.normal:
+                self.movement_controller._speed_factor = 25
+                self.position += self.movement_controller.get_movement_delta(dt)
+                self.is_visible = True
+                self.pl.is_visible = True 
             elif self.state == Player.Statep.health:
-                self.flash(Color.GREEN)
+                self.position += self.movement_controller.get_movement_delta(dt)
+                self.htime += dt
+                self.flash(dt ,Color.GREEN)
+                if self.htime > self.hendtime:
+                    self.state = player.Statep.normal
+                    self.color = self.rgb
+                    self.htime = 0
             elif self.state == Player.Statep.hit:
-                pass
+                self.position += self.movement_controller.get_movement_delta(dt)
+                self.gtime += dt
+                self.flash(dt ,(255 ,0 , 0))
+                if self.gtime > self.gendtime:
+                    self.state = player.Statep.normal
+                    self.color = self.rgb
+                    self.gtime = 0
+            
             if self.health < 1:
                 Gstate = States.lose
         elif Gstate != States.game:
             self.is_visible = False
             self.pl.is_visible = False
-        
-    def flash(self, color):
+
+    def flash(self, dt, color):
+        self.ftime += dt
         if color == Color.GREEN:
             self.color = Color.GREEN
-            for i in range(12):
-                self.is_visible = False
-                self.is_visible = True
+        elif color == (255 ,0 , 0):
+            self.color = (255 ,0 , 0)
+        if self.ftime > self.freload:
+            self.is_visible = not self.is_visible
+            self.time = 0
 
 class Helper(Sprite): 
     global Gstate
@@ -131,7 +193,31 @@ class Helper(Sprite):
             if self.butime > self.reload:
                 hbullet = w.create_sprite(Bullet)
                 hbullet.position = self.position
-                self.butime = 0
+                self.butime = 0 
+        elif Gstate != States.game:
+            self.is_visible = False
+
+class NotHelper(Sprite): 
+    global Gstate
+    def on_create(self):
+        self.movement_controller = Controller(w, speed_factor=25)
+        self.image = "ship_0002.png"
+        self.layer = -1
+        self.scale = 1.6
+        self.y = player.y
+        self.butime = 0 
+        self.reload = 0.36
+        self.is_visible = False
+
+    def on_update(self, dt):
+        self.butime += dt
+        if Gstate == States.game:
+            self.is_visible = True
+            self.position += self.movement_controller.get_movement_delta(dt)
+            if self.butime > self.reload:
+                hbullet = w.create_sprite(Bullet)
+                hbullet.position = self.position
+                self.butime = 0 
         elif Gstate != States.game:
             self.is_visible = False
 
@@ -151,24 +237,41 @@ class Aid(Sprite):
         global Gstate
         if Gstate == States.game:
             self.y -= 4
-            if self.count == 0:
-                self.rtime += dt
-                if self.rtime > self.reload:
-                    self.count += 1
             if self.is_touching_any_sprite_with_tag("Player"):
                 self.delete()
                 player.state = player.Statep.health
-                player.health += 5
-                player.pl.text = ("Player's HP:" + str(player.health)) 
-                self.count = 0
-                self.rtime = 0
+                player.health += 5 
+                player.pl.text = ("Player's HP:" + str(player.health))
             if self.y < 0: 
                 self.delete()
-                self.count = 0
-                self.rtime = 0
+        elif Gstate != States.game:
+            self.delete()
+
+
+class Box(Sprite):
+    
+    def on_create(self):
+        self.image = "box.png"
+        self.layer = 9
+        self.scale = 0.16
+        self.count = 0
+        self.rtime = 0
+        self.reload = 1
+        self.goto_random_position_in_region(12, w.height, 500, w.height)
+
         
-def spwan_aid():
-    w.create_sprite(Aid)
+    def on_update(self, dt):
+        global Gstate
+        if Gstate == States.game:
+            self.y -= 4
+            if self.is_touching_any_sprite_with_tag("Player"):
+                self.delete()
+                player.boost = True
+            if self.y < 0: 
+                self.delete()
+        elif Gstate != States.game:
+            self.delete()
+
 
 class Bullet(Sprite):
     global Gstate
@@ -208,11 +311,15 @@ class Eullet(Sprite):
                     self.delete() 
                     player.health -= 1 
                     player.pl.text = ("Player's HP:" + str(player.health)) 
+                    player.state = player.Statep.hit
         elif Gstate != States.game:
             self.delete()
 
 
 class Boss(Sprite): 
+    class Stateb(Enum):
+        normal = auto()
+        insane = auto()
     
     def on_create(self):
         self.movement_controller = Controller(w, speed_factor=25)
@@ -227,6 +334,8 @@ class Boss(Sprite):
         self.stime = 0
         self.reload = 0.42
         self.ehealth = 100
+        self.line  = self.ehealth/2
+        self.state = Boss.Stateb.normal
         self.el = w.create_label()
         self.el.x = 336
         self.el.y = w.height
@@ -237,15 +346,36 @@ class Boss(Sprite):
         global Gstate
         self.stime += dt 
         if Gstate == States.game:
-            self.is_visible = True
-            self.el.is_visible = True 
-            if self.stime > self.reload:
-                ebullet = w.create_sprite(Eullet)
-                ebullet.position = self.position
-                ebullet.point_toward_sprite(player)
-                self.stime = 0
+            if self.ehealth < self.line:
+                self.state = boss.Stateb.insane
+            if self.state == boss.Stateb.normal:
+                self.is_visible = True
+                self.el.is_visible = True 
+                if self.stime > self.reload:
+                    ebullet = w.create_sprite(Eullet)
+                    ebullet.position = self.position
+                    ebullet.point_toward_sprite(player)
+                    self.stime = 0
+            if self.state == boss.Stateb.insane:
+                self.is_visible = True
+                self.el.is_visible = True 
+                if self.stime > self.reload:
+                    boss.reload = 0.21
+                    ebullet01 = w.create_sprite(Eullet)
+                    ebullet01.position = self.position
+                    ebullet01.point_toward_sprite(player)
+                    ebullet02 = w.create_sprite(Eullet)
+                    ebullet02.position = self.position
+                    ebullet02.x += 96
+                    ebullet02.point_toward_sprite(player)
+                    ebullet03 = w.create_sprite(Eullet)
+                    ebullet03.position = self.position
+                    ebullet03.x -= 96
+                    ebullet03.point_toward_sprite(player)
+                    self.stime = 0
+            
             if self.ehealth < 1:
-                Gstate = States.win
+                Gstate = States.win    
         elif Gstate != States.game:
             self.is_visible = False
             self.el.is_visible = False
@@ -294,18 +424,32 @@ class Return(Sprite):
             Gstate = States.start
         if Gstate == States.lose:
             Gstate = States.start
-    
+          
 def reset():
     boss.ehealth = 100
     boss.position = w.center
     boss.y = boss.y + 324
+    boss.reload = 0.42
     boss.el.text = ("Boss's HP:" + str(boss.ehealth)) 
-    player.health = 26
+    boss.state = boss.Stateb.normal
+    player.health = 9
     player.position = w.center
     player.y = player.y - 200 
     player.pl.text =  ("Player's HP:" + str(player.health))
+    player.state = player.Statep.normal
+    player.color = player.rgb
+    player.htime = 0
+    player.gtime = 0
+    helper01.position = player.position
     helper01.x = player.x - 128 
+    helper02.position = player.position
     helper02.x = player.x + 128
+    player.boost = False
+    if player.tcount == 1:
+            player.bullet01.delete()
+            player.bullet02.delete()
+            player.ttime = 0
+            player.tcount = 0
         
 
 class Scoreboard(Label):
