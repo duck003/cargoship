@@ -1,5 +1,3 @@
-from asynchat import simple_producer
-from tracemalloc import stop
 from pycat.core import Window, Sprite, Color, Label, Scheduler, KeyCode
 from pycat.experimental.movement import FourWayMovementController as Controller
 from typing import List
@@ -32,6 +30,58 @@ class ScrollableLevel:
 
 
 level = ScrollableLevel(["Level_0.png","Level_0.png"])
+toolcount = 0
+
+class Title(Sprite):
+    global Gstate
+    def on_create(self):
+        self.image = "title.png"
+        self.scale = 0.42
+        self.layer  = 10
+        self.position = w.center
+        self.x = self.x - 128
+        self.y = self.y + 272
+        # self.tl01 = w.create_label()
+        # self.tl01.font_size = 29
+        # self.tl01.text = ("Cargo Ship")
+        # self.tl01.color = Color.BLACK
+        # self.tl01.position = self.position 
+        # self.tl01.x = self.x + self.tl01.content_width/2
+        # self.tl01.y = self.y + 38
+        # self.tl02 = w.create_label()
+        # self.tl02.font_size = 29
+        # self.tl02.text = ("Defence Training")
+        # self.tl02.color = Color.BLACK
+        # self.tl02.position = self.position
+        # self.tl02.x = self.x + self.tl02.content_width/2 - 96
+        # self.tl02.y = self.y - 16
+
+
+    def on_update(self, dt):
+        if Gstate == States.start:
+            self.is_visible = True
+            # self.tl01.is_visible = True
+            # self.tl02.is_visible = True
+        if Gstate != States.start:
+            self.is_visible = False
+            # self.tl01.is_visible = False
+            # self.tl02.is_visible = False
+
+class Titleword(Sprite):
+    global Gstate
+    def on_create(self):
+        self.image = "titleword.png"
+        self.scale = 0.75
+        self.layer  = 10
+        self.position = w.center
+        self.x = self.x +  59
+        self.y = self.y + 243
+        
+    def on_update(self, dt):
+        if Gstate == States.start:
+            self.is_visible = True
+        if Gstate != States.start:
+            self.is_visible = False
 
 class Playbo(Sprite):
     global Gstate
@@ -231,13 +281,15 @@ class Aid(Sprite):
         self.rtime = 0
         self.reload = 1
         self.goto_random_position_in_region(12, w.height, 500, w.height)
+        self.y = w.height + self.height
 
         
     def on_update(self, dt):
-        global Gstate
+        global Gstate, toolcount
         if Gstate == States.game:
             self.y -= 4
             if self.is_touching_any_sprite_with_tag("Player"):
+                toolcount += 1
                 self.delete()
                 player.state = player.Statep.health
                 player.health += 5 
@@ -258,13 +310,15 @@ class Box(Sprite):
         self.rtime = 0
         self.reload = 1
         self.goto_random_position_in_region(12, w.height, 500, w.height)
+        self.y = w.height + self.height
 
         
     def on_update(self, dt):
-        global Gstate
+        global Gstate, toolcount
         if Gstate == States.game:
             self.y -= 4
             if self.is_touching_any_sprite_with_tag("Player"):
+                toolcount += 1
                 self.delete()
                 player.boost = True
             if self.y < 0: 
@@ -424,8 +478,135 @@ class Return(Sprite):
             Gstate = States.start
         if Gstate == States.lose:
             Gstate = States.start
-          
+            
+
+class Scoreboard(Label):
+    global Gstate
+    def on_create(self):
+        self.color = Color.CYAN
+        self.layer = 11
+        self.text = "Final Score"
+        self.x = rbotton.la.x
+        self.x = self.x - self.content_width*0.75
+        self.y = rbotton.la.y - 128
+        self.font_size = 32
+        self.is_visible = False
+    
+    def on_update(self, dt):
+        if Gstate is States.win:
+            self.is_visible = True
+        if Gstate is States.lose:
+            self.is_visible = True
+        if Gstate is States.start:
+            self.is_visible = False
+
+class Scoreboardboss(Label):
+    global Gstate
+    def on_create(self):
+        self.color = Color.RED
+        self.layer = 11
+        self.text = "Final Score"
+        self.time = 0
+        self.atime = 2
+        self.position = w.center
+        self.x = self.x - self.content_width
+        self.y = self.y - 32
+        self.font_size = 42
+        self.is_visible = False
+    
+    def on_update(self, dt):
+        if Gstate is States.win:
+            self.time += dt
+            if self.time > self.atime:
+                self.is_visible = True
+                self.text = ("Boss's HP:" + str(0))
+                self.position = w.center
+                self.y = self.y + 128
+                self.x = self.x - self.content_width/2
+        if Gstate is States.lose:
+            self.time += dt
+            if self.time > self.atime:
+                self.is_visible = True
+                self.text = ("Boss's HP:" + str(boss.ehealth))
+                self.position = w.center
+                self.y = self.y + 128
+                self.x = self.x - self.content_width/2
+        if Gstate is States.start:
+            self.is_visible = False
+            self.time = 0
+
+class Scoreboardplayer(Label):
+    global Gstate
+    def on_create(self):
+        self.layer = 11
+        self.color = Color.RED
+        self.text = "Final Score"
+        self.position = w.center
+        self.time = 0
+        self.atime = 1
+        self.x = self.x - self.content_width
+        self.y = self.y + 32
+        self.font_size = 42
+        self.is_visible = False
+    
+    def on_update(self, dt):
+        if Gstate is States.win:
+            self.time += dt
+            if self.time > self.atime:
+                self.is_visible = True
+                self.text = ("Player's HP:" + str(player.health))
+                self.position = w.center
+                self.x = self.x - self.content_width/2
+                self.y = self.y + 192
+        if Gstate is States.lose:
+            self.time += dt
+            if self.time > self.atime:
+                self.is_visible = True
+                self.text = ("Player's HP:" + str(player.health))
+                self.position = w.center
+                self.x = self.x - self.content_width/2
+                self.y = self.y + 192
+        if Gstate is States.start:
+            self.is_visible = False
+            self.time = 0
+
+class Scoreboardtool(Label):
+    global Gstate
+    def on_create(self):
+        self.layer = 11
+        self.color = Color.RED
+        self.text = "Final Score"
+        self.position = w.center
+        self.time = 0
+        self.atime = 3
+        self.x = self.x - self.content_width
+        self.y = self.y + 32
+        self.font_size = 42
+        self.is_visible = False
+    
+    def on_update(self, dt):
+        if Gstate is States.win:
+            self.time += dt
+            if self.time > self.atime:
+                self.is_visible = True
+                self.text = ("Used tool(s) :" + str(toolcount))
+                self.position = w.center
+                self.x = self.x - self.content_width/2
+                self.y = self.y + 64
+        if Gstate is States.lose:
+            self.time += dt
+            if self.time > self.atime:
+                self.is_visible = True
+                self.text = ("Used tool(s):" + str(toolcount))
+                self.position = w.center
+                self.x = self.x - self.content_width/2
+                self.y = self.y + 64
+        if Gstate is States.start:
+            self.is_visible = False
+            self.time = 0
+
 def reset():
+    toolcount = 0
     boss.ehealth = 100
     boss.position = w.center
     boss.y = boss.y + 324
@@ -450,26 +631,7 @@ def reset():
             player.bullet02.delete()
             player.ttime = 0
             player.tcount = 0
-        
-
-class Scoreboard(Label):
-    global Gstate
-    def on_create(self):
-        self.color = Color.CYAN
-        self.text = "wiwiwiwiwiw"
-        self.x = rbotton.la.x
-        self.x = self.x - self.content_width*1.25
-        self.y = rbotton.la.y - 64
-        self.font_size = 48
-        self.is_visible = False
     
-    def on_update(self, dt):
-        if Gstate is States.win:
-            self.is_visible = True
-        if Gstate is States.lose:
-            self.is_visible = True
-        if Gstate is States.start:
-            self.is_visible = False
 
 boss:Boss = w.create_sprite(Boss)
 player = w.create_sprite(Player)
@@ -477,7 +639,12 @@ helper01 = w.create_sprite(Helper)
 helper01.x = player.x - 128
 helper02 = w.create_sprite(Helper)
 helper02.x = player.x + 128
+title = w.create_sprite(Title)
+titleword = w.create_sprite(Titleword)
 pbotton = w.create_sprite(Playbo)
 rbotton = w.create_sprite(Return)
 scoreboard = w.create_label(Scoreboard)
+fboss = w.create_label(Scoreboardboss)
+fplayer = w.create_label(Scoreboardplayer)
+ftool = w.create_label(Scoreboardtool)
 w.run()
