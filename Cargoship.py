@@ -130,7 +130,7 @@ class Player(Sprite):
         self.movement_controller = Controller(w, speed_factor=25)
         self.image = "ship_0000.png"
         self.add_tag("Player")
-        self.layer = 9
+        self.layer = 11
         self.scale = 3.2
         self.position = w.center
         self.y = self.y - 200
@@ -296,6 +296,36 @@ class Aid(Sprite):
                 player.pl.text = ("Player's HP:" + str(player.health))
             if self.y < 0: 
                 self.delete()
+        elif Gstate != States.game:
+            self.delete()
+
+
+class Tropedo(Sprite):
+    
+    def on_create(self):
+        self.image = "rocket.png"
+        self.layer = 9  
+        self.scale = 0.16
+        self.count = 0
+        self.rtime = 0
+        self.reload = 6
+        self.position  = player.position
+        
+    def on_update(self, dt):
+        global Gstate, toolcount
+        self.rtime += dt
+        if Gstate == States.game:
+            self.y += 9
+            if self.is_touching_any_sprite_with_tag("Boss"):
+                toolcount += 1
+                self.delete()
+            if self.y > w.height: 
+                self.delete()
+        if self.count < 4:
+            if self.rtime > self.reload:
+                self.count +=1 
+                self.rtime = 0
+                trlabel.text =  ("Tropedo:" + str(self.count))
         elif Gstate != States.game:
             self.delete()
 
@@ -478,6 +508,23 @@ class Return(Sprite):
             Gstate = States.start
         if Gstate == States.lose:
             Gstate = States.start
+
+class Trlabel(Label):
+
+    def on_create(self):
+        self.x = 0
+        self.y = w.height - player.pl.content_height
+        self.layer = 9
+        self.font_size = 32
+        self.color = Color.WHITE
+        self.is_visible = False
+
+    def on_update(self, dt: float):
+        if Gstate is States.game:
+            self.is_visible = True
+        elif Gstate is not States.game:
+            self.is_visible = False
+
             
 
 class Scoreboard(Label):
@@ -606,6 +653,7 @@ class Scoreboardtool(Label):
             self.time = 0
 
 def reset():
+    global toolcount
     toolcount = 0
     boss.ehealth = 100
     boss.position = w.center
@@ -647,4 +695,5 @@ scoreboard = w.create_label(Scoreboard)
 fboss = w.create_label(Scoreboardboss)
 fplayer = w.create_label(Scoreboardplayer)
 ftool = w.create_label(Scoreboardtool)
+trlabel = w.create_label(Trlabel)
 w.run()
