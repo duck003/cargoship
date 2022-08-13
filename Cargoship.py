@@ -75,7 +75,7 @@ class Title(Sprite):
 class Titleword(Sprite):
     global Gstate
     def on_create(self):
-        self.image = "shrimptitleword.png"
+        self.image = "titleword.png"
         self.scale = 0.75
         self.layer  = 10
         self.position = w.center
@@ -299,6 +299,7 @@ class NotHelper(Sprite):
         elif Gstate != States.game:
             self.is_visible = False
 
+
 class Aid(Sprite):
     
     def on_create(self):
@@ -449,7 +450,8 @@ class Eullet(Sprite):
 
 class Boss(Sprite): 
     class Stateb(Enum):
-        normal = auto()
+        normal = auto() 
+        rocket = auto()
         insane = auto()
 
     class Move(Enum):
@@ -460,33 +462,51 @@ class Boss(Sprite):
 
     def on_create(self):
         self.movement_controller = Controller(w, speed_factor=25)
-        self.image = "shrimprship_0003.png"
+        self.image = "ship_0003.png"
         self.add_tag("Boss")
         self.layer = 10
-        # self.scale = 6.8
-        self.scale = 0.37
+        self.scale = 6.8
+        # self.scale = 0.37
         self.rotation = 180
         self.position = w.center
         self.y = self.y + 324
         self.is_visible = False
-        self.stime = 0
+        self.stime = 0  
         self.reload = 0.42
+        self.rtime = 0
+        self.rreload = 4
         self.ehealth = 600
-        self.line  = self.ehealth/2
+        self.line  = self.ehealth/3
+        self.line2 = self.ehealth/3*2
         self.mstate = self.Move.left1
         self.mtime = 0
         self.state = Boss.Stateb.normal
         self.el = w.create_label()
-        self.el.x = 336
         self.el.y = w.height
         self.el.text = ("Boss's HP:" + str(self.ehealth))
+        self.el.x = w.width - self.el.content_width
         self.el.is_visible = False
+        self.sl = w.create_label() 
+        self.sl.y = w.height- self.el.content_height
+        self.sl.text = ("Phase:1")
+        self.sl.x = w.width - self.sl.content_width 
+        self.sl.is_visible = False
     
     def on_update(self, dt):
         global Gstate
         self.stime += dt 
         self.mtime += dt
+        self.rtime += dt
         if Gstate == States.game:
+            self.sl.is_visible = True
+            if self.ehealth < self.line2:
+                self.state = self.Stateb.rocket
+                self.sl.text = ("Phase:2")
+            if self.ehealth < self.line and self.ehealth < self.line2:
+                self.state = self.Stateb.insane
+                self.sl.text = ("Phase:Final")
+                self.sl.x = w.width - self.sl.content_width
+
             if self.mtime < 5:
                 self.mstate = self.Move.left1
             if self.mtime >= 5 and self.mtime < 10:
@@ -508,45 +528,118 @@ class Boss(Sprite):
             if self.mstate is self.Move.left4:
                 self.move(self.mstate)
             
-            if self.ehealth < self.line:
-                self.state = boss.Stateb.insane
+                
             if self.state == boss.Stateb.normal:
                 self.is_visible = True
                 self.el.is_visible = True 
                 if self.stime > self.reload:
-                    ebullet = w.create_sprite(Eullet)
-                    ebullet.position = self.position
-                    ebullet.point_toward_sprite(player)
+                    self.shoot()
                     self.stime = 0
+            if self.state == boss.Stateb.rocket:
+                self.is_visible = True
+                self.el.is_visible = True 
+                if self.stime > self.reload:
+                    self.shoot()
+                    self.stime = 0
+                if self.rtime > self.rreload:
+                    self.shootrocket()
+                    self.rtime = 0
             if self.state == boss.Stateb.insane:
                 self.is_visible = True
                 self.el.is_visible = True 
                 if self.stime > self.reload:
                     boss.reload = 0.21
-                    ebullet01 = w.create_sprite(Eullet)
-                    ebullet01.position = self.position
-                    ebullet01.point_toward_sprite(player)
-                    ebullet02 = w.create_sprite(Eullet)
-                    ebullet02.position = self.position
-                    ebullet02.x += 96
-                    ebullet02.point_toward_sprite(player)
-                    ebullet03 = w.create_sprite(Eullet)
-                    ebullet03.position = self.position
-                    ebullet03.x -= 96
-                    ebullet03.point_toward_sprite(player)
+                    self.shootline()
+                    self.stime = 0
+                if self.rtime > self.rreload:
+                    self.shootrocket()
                     self.stime = 0
             
             if self.ehealth < 1:
                 Gstate = States.win    
+        
         elif Gstate != States.game:
             self.is_visible = False
             self.el.is_visible = False
+            self.sl.is_visible = False
     
     def move(self, mstater):
         if mstater is self.Move.left1 or mstater is self.Move.left4:
             self.x -= 0.12
         if mstater is self.Move.right2 or mstater is self.Move.right3:
             self.x += 0.12
+    
+    def shoot(self):
+        ebullet = w.create_sprite(Eullet)
+        ebullet.position = self.position
+        ebullet.point_toward_sprite(player)
+    
+    def shootrocket(self):
+        eTropedo = w.create_sprite(ETropedo)
+        eTropedo.position = self.position
+        eTropedo.point_toward_sprite(player)
+
+    def shootline(self):
+        ebullet01 = w.create_sprite(Eullet)
+        ebullet01.position = self.position
+        ebullet01.point_toward_sprite(player)
+        ebullet02 = w.create_sprite(Eullet)
+        ebullet02.position = self.position
+        ebullet02.x += 96
+        ebullet02.point_toward_sprite(player)
+        ebullet03 = w.create_sprite(Eullet)
+        ebullet03.position = self.position
+        ebullet03.x -= 96
+        ebullet03.point_toward_sprite(player)
+        
+
+
+class ETropedo(Sprite):
+
+    def on_create(self):
+        self.image = "rocket1.png"
+        self.layer = 9  
+        self.scale = 0.22
+        self.state = TropedoState.shooting
+        self.point_toward_sprite(player)
+        self.ftime = 0
+        self.dtime = 0
+        self.explode = 0.36
+        self.disappear = 0.5
+        
+    def on_update(self, dt):
+        global Gstate, toolcount,howmanysh
+        if Gstate == States.game:
+            if self.state == TropedoState.shooting:  
+                self.move_forward(9)
+                if self.is_touching_any_sprite_with_tag("Player"):
+                    player.health -= 2
+                    player.state = player.Statep.hit
+                    player.pl.text = ("Player's HP:" + str(player.health)) 
+                    self.state = TropedoState.boom
+                if self.y < 0 - self.height: 
+                    self.delete() 
+            if self.state == TropedoState.boom:
+                self.boom(dt)
+                    
+        elif Gstate != States.game:
+            self.delete()
+        
+    
+    
+    def boom(self, dt):
+        self.image = "explode.png"
+        self.scale = 0.11
+        self.ftime += dt
+        if self.ftime > self.explode:
+            self.is_visible = not self.is_visible
+            self.ftime = 0
+        self.dtime += dt
+        if self.dtime > self.disappear:
+            self.state = TropedoState.shooting
+            self.delete()
+        
+
 
 class Return(Sprite):
     global Gstate
