@@ -1,6 +1,3 @@
-from re import I
-from turtle import left
-from numpy import trace
 from pycat.core import Window, Sprite, Color, Label, Scheduler, KeyCode
 from pycat.experimental.movement import FourWayMovementController as Controller
 from typing import List
@@ -166,7 +163,7 @@ class Player(Sprite):
         if Gstate == States.game:
             self.btime += dt
             if howmanysh > 0:
-                if w.is_key_down(KeyCode.Z):
+                if w.is_key_down(KeyCode.E):
                     tr = w.create_sprite(Tropedo)
                     self.detectr(tr)
                     tr.position = self.position
@@ -352,7 +349,7 @@ class Tropedo(Sprite):
         if Gstate == States.game:
             if self.state == TropedoState.shooting:  
                 self.y += 9
-                if w.is_key_down(KeyCode.X):
+                if w.is_key_down(KeyCode.Q):
                     self.state = TropedoState.boom
                 if self.y > w.height: 
                     self.delete() 
@@ -553,7 +550,7 @@ class Boss(Sprite):
                     self.stime = 0
                 if self.rtime > self.rreload:
                     self.shootrocket()
-                    self.stime = 0
+                    self.rtime = 0
             
             if self.ehealth < 1:
                 Gstate = States.win    
@@ -731,12 +728,12 @@ class Uselabel(Label):
         global howmanysh,howmanytr,trlabel
         if Gstate is States.game:
             self.is_visible = True
-            if w.is_key_down(KeyCode.A) and howmanytr > 0:
+            if w.is_key_down(KeyCode.R) and howmanytr > 0:
                 howmanytr -= 1
                 howmanysh += 1
                 trlabel.text = ("Tropedo stroge:" + str(howmanytr))
                 self.text = ("Shoot Amount:" + str(howmanysh))
-            if w.is_key_down(KeyCode.S) and howmanysh > 0:
+            if w.is_key_down(KeyCode.F) and howmanysh > 0:
                 howmanytr += 1
                 howmanysh -= 1
                 trlabel.text = ("Tropedo stroge:" + str(howmanytr))
@@ -794,7 +791,7 @@ class Scoreboardboss(Label):
             self.time += dt
             if self.time > self.atime:
                 self.is_visible = True
-                self.text = ("Boss's HP:" + str(boss.ehealth))
+                self.text = ("Boss's HP:" + str(int(boss.ehealth)))
                 self.position = w.center
                 self.y = self.y + 128
                 self.x = self.x - self.content_width/2
@@ -882,6 +879,8 @@ def reset():
     boss.y = boss.y + 324
     boss.reload = 0.42
     boss.el.text = ("Boss's HP:" + str(boss.ehealth)) 
+    boss.sl.text = ("Phase:1")
+    boss.sl.x = w.width - boss.sl.content_width 
     boss.state = boss.Stateb.normal
     player.health = 26
     player.position = w.center
