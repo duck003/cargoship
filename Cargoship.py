@@ -561,10 +561,16 @@ class Boss(Sprite):
             self.sl.is_visible = False
     
     def move(self, mstater):
-        if mstater is self.Move.left1 or mstater is self.Move.left4:
-            self.x -= 0.12
-        if mstater is self.Move.right2 or mstater is self.Move.right3:
-            self.x += 0.12
+        if self.state is not self.Stateb.insane:
+            if mstater is self.Move.left1 or mstater is self.Move.left4:
+                self.x -= 0.12
+            if mstater is self.Move.right2 or mstater is self.Move.right3:
+                self.x += 0.12
+        if self.state is self.Stateb.insane:
+            if mstater is self.Move.left1 or mstater is self.Move.left4:
+                self.x -= 0.6
+            if mstater is self.Move.right2 or mstater is self.Move.right3:
+                self.x += 0.6
     
     def shoot(self):
         ebullet = w.create_sprite(Eullet)
