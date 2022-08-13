@@ -1,3 +1,6 @@
+from re import I
+from turtle import left
+from numpy import trace
 from pycat.core import Window, Sprite, Color, Label, Scheduler, KeyCode
 from pycat.experimental.movement import FourWayMovementController as Controller
 from typing import List
@@ -12,7 +15,7 @@ class States(Enum):
     game = auto()
     win = auto()
     lose = auto()
-
+    
 Gstate = States.start
 
 class ScrollableLevel:
@@ -31,6 +34,8 @@ class ScrollableLevel:
 
 level = ScrollableLevel(["Level_0.png","Level_0.png"])
 toolcount = 0
+howmanytr = 0
+howmanysh = 0
 
 class Title(Sprite):
     global Gstate
@@ -70,7 +75,7 @@ class Title(Sprite):
 class Titleword(Sprite):
     global Gstate
     def on_create(self):
-        self.image = "titleword.png"
+        self.image = "shrimptitleword.png"
         self.scale = 0.75
         self.layer  = 10
         self.position = w.center
@@ -146,7 +151,7 @@ class Player(Sprite):
         self.tendtime = 11
         self.ftime = 0
         self.freload = 0.36
-        self.health = 9
+        self.health = 26
         self.pl = w.create_label()
         self.pl.x = 0
         self.pl.y = w.height
@@ -157,9 +162,17 @@ class Player(Sprite):
         self.boost = False
         
     def on_update(self, dt):
-        global Gstate
+        global Gstate, howmanytr,howmanysh, trlabel
         if Gstate == States.game:
             self.btime += dt
+            if howmanysh > 0:
+                if w.is_key_down(KeyCode.Z):
+                    tr = w.create_sprite(Tropedo)
+                    self.detectr(tr)
+                    tr.position = self.position
+                    howmanysh = 0
+                    shlabel.text = ("Shoot Amount:" + str(howmanysh))
+
             if self.btime > self.reload:
                     pbullet = w.create_sprite(Bullet)
                     pbullet.position = self.position
@@ -222,6 +235,21 @@ class Player(Sprite):
         if self.ftime > self.freload:
             self.is_visible = not self.is_visible
             self.time = 0
+    
+    def detectr(self,tr):
+        global Tropedo, howmanysh
+        if howmanysh == 1:
+            tr.image = "rocket1.png"
+            tr.disappear = 0.5
+        if howmanysh == 2:
+            tr.image = "rocket2.png"
+            tr.disappear = 1
+        if howmanysh == 3:
+            tr.image = "rocket3.png"
+            tr.disappear = 1.72
+        if howmanysh == 4:
+            tr.image = "rocket4.png"
+            tr.disappear = 2.56
 
 class Helper(Sprite): 
     global Gstate
@@ -299,37 +327,56 @@ class Aid(Sprite):
         elif Gstate != States.game:
             self.delete()
 
+class TropedoState(Enum):
+        shooting = auto()
+        boom = auto()
+    
 
 class Tropedo(Sprite):
-    
+
     def on_create(self):
-        self.image = "rocket.png"
+        self.image = "rocket1.png"
         self.layer = 9  
-        self.scale = 0.16
+        self.scale = 0.11
         self.count = 0
-        self.rtime = 0
-        self.reload = 6
+        self.state = TropedoState.shooting
         self.position  = player.position
+        self.ftime = 0
+        self.dtime = 0
+        self.explode = 0.36
+        self.disappear = 0.5
         
     def on_update(self, dt):
-        global Gstate, toolcount
-        self.rtime += dt
+        global Gstate, toolcount,howmanysh
         if Gstate == States.game:
-            self.y += 9
-            if self.is_touching_any_sprite_with_tag("Boss"):
-                toolcount += 1
-                self.delete()
-            if self.y > w.height: 
-                self.delete()
-        if self.count < 4:
-            if self.rtime > self.reload:
-                self.count +=1 
-                self.rtime = 0
-                trlabel.text =  ("Tropedo:" + str(self.count))
+            if self.state == TropedoState.shooting:  
+                self.y += 9
+                if w.is_key_down(KeyCode.X):
+                    self.state = TropedoState.boom
+                if self.y > w.height: 
+                    self.delete() 
+            if self.state == TropedoState.boom:
+                self.boom(dt)
+                if self.is_touching_any_sprite_with_tag("Boss"):
+                    boss.ehealth -= 0.1 
+                    boss.el.text = ("Boss's HP:" + str(boss.ehealth)) 
         elif Gstate != States.game:
             self.delete()
-
-
+        
+    
+    
+    def boom(self, dt):
+        self.image = "explode.png"
+        self.scale = 0.46
+        self.ftime += dt
+        if self.ftime > self.explode:
+            self.is_visible = not self.is_visible
+            self.ftime = 0
+        self.dtime += dt
+        if self.dtime > self.disappear:
+            self.state = TropedoState.shooting
+            self.delete()
+        
 class Box(Sprite):
     
     def on_create(self):
@@ -404,21 +451,30 @@ class Boss(Sprite):
     class Stateb(Enum):
         normal = auto()
         insane = auto()
-    
+
+    class Move(Enum):
+        left1 = auto()
+        right2 = auto()
+        right3 = auto()
+        left4 = auto()
+
     def on_create(self):
         self.movement_controller = Controller(w, speed_factor=25)
-        self.image = "ship_0003.png"
+        self.image = "shrimprship_0003.png"
         self.add_tag("Boss")
         self.layer = 10
-        self.scale = 6.8
+        # self.scale = 6.8
+        self.scale = 0.37
         self.rotation = 180
         self.position = w.center
         self.y = self.y + 324
         self.is_visible = False
         self.stime = 0
         self.reload = 0.42
-        self.ehealth = 100
+        self.ehealth = 600
         self.line  = self.ehealth/2
+        self.mstate = self.Move.left1
+        self.mtime = 0
         self.state = Boss.Stateb.normal
         self.el = w.create_label()
         self.el.x = 336
@@ -429,7 +485,29 @@ class Boss(Sprite):
     def on_update(self, dt):
         global Gstate
         self.stime += dt 
+        self.mtime += dt
         if Gstate == States.game:
+            if self.mtime < 5:
+                self.mstate = self.Move.left1
+            if self.mtime >= 5 and self.mtime < 10:
+                self.mstate = self.Move.right2
+            if self.mtime >= 10 and self.mtime < 15:               
+                self.mstate = self.Move.right3
+            if self.mtime >= 15 and self.mtime < 20:
+                self.mstate = self.Move.left4
+            if self.mtime > 21:
+                self.mstate = self.Move.left1
+                self.mtime = 0
+            
+            if self.mstate is self.Move.left1:
+                self.move(self.mstate)
+            if self.mstate is self.Move.right2:
+                self.move(self.mstate)
+            if self.mstate is self.Move.right3:
+                self.move(self.mstate)
+            if self.mstate is self.Move.left4:
+                self.move(self.mstate)
+            
             if self.ehealth < self.line:
                 self.state = boss.Stateb.insane
             if self.state == boss.Stateb.normal:
@@ -464,7 +542,12 @@ class Boss(Sprite):
             self.is_visible = False
             self.el.is_visible = False
     
-        
+    def move(self, mstater):
+        if mstater is self.Move.left1 or mstater is self.Move.left4:
+            self.x -= 0.12
+        if mstater is self.Move.right2 or mstater is self.Move.right3:
+            self.x += 0.12
+
 class Return(Sprite):
     global Gstate
     def on_create(self):
@@ -509,19 +592,63 @@ class Return(Sprite):
         if Gstate == States.lose:
             Gstate = States.start
 
+
 class Trlabel(Label):
 
     def on_create(self):
         self.x = 0
         self.y = w.height - player.pl.content_height
         self.layer = 9
-        self.font_size = 32
+        # self.font_size = 24
         self.color = Color.WHITE
         self.is_visible = False
+        self.rtime = 0
+        self.reload = 6
+        self.text = ("Tropedo stroge:" + str(howmanytr))
 
     def on_update(self, dt: float):
+        global howmanytr, howmanysh
+        self.rtime += dt
+        if howmanytr + howmanysh < 4:
+            if self.rtime > self.reload:
+                howmanytr += 1 
+                self.rtime = 0
+                trlabel.text =  ("Tropedo stroge:" + str(howmanytr))
+        
         if Gstate is States.game:
             self.is_visible = True
+        elif Gstate is not States.game:
+            self.is_visible = False
+
+class Uselabel(Label):
+
+    def on_create(self):
+        global howmanysh
+        self.x = 0
+        self.y = w.height - player.pl.content_height - trlabel.content_height
+        self.layer = 9
+        # self.font_size = 24
+        self.color = Color.WHITE
+        self.is_visible = False
+        self.rtime = 0
+        self.reload = 6
+        self.text = ("Shoot Amount:" + str(howmanysh))
+
+    def on_update(self, dt: float):
+        global howmanysh,howmanytr,trlabel
+        if Gstate is States.game:
+            self.is_visible = True
+            if w.is_key_down(KeyCode.A) and howmanytr > 0:
+                howmanytr -= 1
+                howmanysh += 1
+                trlabel.text = ("Tropedo stroge:" + str(howmanytr))
+                self.text = ("Shoot Amount:" + str(howmanysh))
+            if w.is_key_down(KeyCode.S) and howmanysh > 0:
+                howmanytr += 1
+                howmanysh -= 1
+                trlabel.text = ("Tropedo stroge:" + str(howmanytr))
+                self.text = ("Shoot Amount:" + str(howmanysh))
+
         elif Gstate is not States.game:
             self.is_visible = False
 
@@ -653,15 +780,17 @@ class Scoreboardtool(Label):
             self.time = 0
 
 def reset():
-    global toolcount
+    global toolcount,howmanytr,howmanysh
     toolcount = 0
-    boss.ehealth = 100
+    howmanytr = 0
+    howmanysh = 0
+    boss.ehealth = 600
     boss.position = w.center
     boss.y = boss.y + 324
     boss.reload = 0.42
     boss.el.text = ("Boss's HP:" + str(boss.ehealth)) 
     boss.state = boss.Stateb.normal
-    player.health = 9
+    player.health = 26
     player.position = w.center
     player.y = player.y - 200 
     player.pl.text =  ("Player's HP:" + str(player.health))
@@ -695,5 +824,6 @@ scoreboard = w.create_label(Scoreboard)
 fboss = w.create_label(Scoreboardboss)
 fplayer = w.create_label(Scoreboardplayer)
 ftool = w.create_label(Scoreboardtool)
-trlabel = w.create_label(Trlabel)
+trlabel:Label = w.create_label(Trlabel)
+shlabel:Label = w.create_label(Uselabel)
 w.run()
